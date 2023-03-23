@@ -40,7 +40,12 @@ export interface ProcessParameters {
     processType?: string
 }
 
+export type ProcessId = number;
+
 export class ScheduledProcess implements Disposable {
+    private static processIdCounter = 0;
+    public readonly processId: ProcessId = ScheduledProcess.processIdCounter++;
+
     /** Command line of the executed process.
      * Note: In the executed command line, each argument is passed separately, so no need to escape individual args.
      */
@@ -88,8 +93,8 @@ export class ScheduledProcess implements Disposable {
         return this._processStatus;
     }
 
-    private _processStatusChange: EventEmitter<ProcessStatus> = new EventEmitter();
-    public get processStatusChange(): Event<ProcessStatus> {
+    private _processStatusChange: EventEmitter<[ProcessId, ProcessStatus]> = new EventEmitter();
+    public get processStatusChange(): Event<[ProcessId, ProcessStatus]> {
         return this._processStatusChange.event;
     }
 
@@ -111,7 +116,7 @@ export class ScheduledProcess implements Disposable {
             this.killProcess();
         }
 
-        this._processStatusChange.fire(ProcessStatus.removed);
+        this._processStatusChange.fire([this.processId, ProcessStatus.removed]);
 
         this._processStatusChange.dispose();
         this._processStdout.dispose();
@@ -188,18 +193,18 @@ export class ScheduledProcess implements Disposable {
         case ProcessStatus.running:
             if (this._processStatus !== ProcessStatus.running) {
                 this._processStatus = ProcessStatus.running;
-                this._processStatusChange.fire(ProcessStatus.running);
+                this._processStatusChange.fire([this.processId, ProcessStatus.running]);
             }
             break;
         case ProcessStatus.removed:
             // dispose() calls killProcess before dispatching this event.
-            this._processStatusChange.fire(ProcessStatus.removed);
+            this._processStatusChange.fire([this.processId, ProcessStatus.removed]);
             break;
         default:
             if (this._processStatus === ProcessStatus.running) {
                 this.activeProcess = undefined;
                 this._processStatus = ProcessStatus.notRunning;
-                this._processStatusChange.fire(status);
+                this._processStatusChange.fire([this.processId, status]);
             }
             break;
         }
@@ -256,8 +261,8 @@ export class ExecutorManager implements Disposable {
         return this._processStatus;
     }
 
-    private _processStatusChange: EventEmitter<ProcessStatus> = new EventEmitter();
-    public get processStatusChange(): Event<ProcessStatus> {
+    private _processStatusChange: EventEmitter<[ProcessId, ProcessStatus]> = new EventEmitter();
+    public get processStatusChange(): Event<[ProcessId, ProcessStatus]> {
         return this._processStatusChange.event;
     }
 
@@ -270,16 +275,14 @@ export class ExecutorManager implements Disposable {
         this.clearQueue();
     }
 
-    private updateStatus(status: ProcessStatus) {
+    private updateStatus([id, status]: [ProcessId, ProcessStatus]) {
         switch (status) {
         case ProcessStatus.removed:
-            this._processStatusChange.fire(status);
-            break;
         case ProcessStatus.running:
-            this._processStatusChange.fire(ProcessStatus.running);
+            this._processStatusChange.fire([id, status]);
             break;
         default:
-            this._processStatusChange.fire(status);
+            this._processStatusChange.fire([id, status]);
             const previousProcess = this.activeProcess;
             this.activeProcess = undefined;
             previousProcess?.dispose();

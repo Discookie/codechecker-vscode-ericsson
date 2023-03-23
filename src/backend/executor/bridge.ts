@@ -194,7 +194,7 @@ export class ExecutorBridge implements Disposable {
         }
 
         if (buildCommand === undefined) {
-            buildCommand = getConfigAndReplaceVariables('codechecker.backend', 'logBuildCommand') ?? 'make';
+            buildCommand = getConfigAndReplaceVariables('codechecker.executor', 'logBuildCommand') ?? 'make';
         } else {
             buildCommand = replaceVariables(buildCommand) ?? 'make';
         }
@@ -322,7 +322,7 @@ export class ExecutorBridge implements Disposable {
         if (buildCommand === undefined) {
             buildCommand = await window.showInputBox({
                 prompt: 'Enter the build command to run with CodeChecker log',
-                value: getConfigAndReplaceVariables('codechecker.backend', 'logBuildCommand') ?? 'make'
+                value: getConfigAndReplaceVariables('codechecker.executor', 'logBuildCommand') ?? 'make'
             });
         }
 
@@ -378,8 +378,8 @@ export class ExecutorBridge implements Disposable {
 
         process.processStdout((output) => processOutput += output);
 
-        process.processStatusChange((status) => {
-            if (status === ProcessStatus.finished) {
+        process.processStatusChange(([id, status]) => {
+            if (id === process.processId && status === ProcessStatus.finished) {
                 ExtensionApi.metadata.parseCheckerData(processOutput);
             }
         });
@@ -417,8 +417,8 @@ export class ExecutorBridge implements Disposable {
 
         process.processStdout((output) => processOutput += output);
 
-        process.processStatusChange((status) => {
-            if (status === ProcessStatus.finished) {
+        process.processStatusChange(([id, status]) => {
+            if (id === process.processId && status === ProcessStatus.finished) {
                 ExtensionApi.diagnostics.parseDiagnosticsData(processOutput);
             }
         });
@@ -471,7 +471,10 @@ export class ExecutorBridge implements Disposable {
 
             process.processStdout((output) => processOutput += output);
 
-            process.processStatusChange(async (status) => {
+            process.processStatusChange(async ([id, status]) => {
+                if (id !== process.processId) {
+                    return;
+                }
                 switch (status) {
                 case ProcessStatus.running: return;
                 case ProcessStatus.finished:

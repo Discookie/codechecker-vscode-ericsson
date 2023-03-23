@@ -11,7 +11,7 @@ import {
 } from 'vscode';
 import { Editor } from '.';
 import { ExtensionApi } from '../backend';
-import { ProcessStatus } from '../backend/executor/process';
+import { ProcessId, ProcessStatus } from '../backend/executor/process';
 import { getConfigAndReplaceVariables } from '../utils/config';
 import { NotificationType } from './notifications';
 
@@ -87,9 +87,9 @@ export class ExecutorAlerts {
         }, 1000);
     }
 
-    onStatusChange(status: ProcessStatus) {
-        // Do not update when a non-progressbar process was finished
-        if (ExtensionApi.executorManager.activeProcess === undefined) {
+    onStatusChange([id, status]: [ProcessId, ProcessStatus]) {
+        // Do not update when an old process throws an event
+        if (ExtensionApi.executorManager.activeProcess?.processId !== id) {
             return;
         }
 

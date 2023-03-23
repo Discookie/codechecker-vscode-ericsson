@@ -2,7 +2,7 @@ import * as assert from 'assert';
 import * as path from 'path';
 const sinon = require('sinon');
 import { ConfigurationTarget, Uri, commands, extensions, workspace } from 'vscode';
-import { ExecutorBridge, ExecutorManager, ProcessStatus, ProcessType } from '../../backend/executor';
+import { ExecutorBridge, ExecutorManager, ProcessStatus, ProcessType, ScheduledProcess } from '../../backend/executor';
 import { CodeCheckerExtension } from '../../extension';
 import { STATIC_WORKSPACE_PATH } from '../utils/constants';
 import { closeAllTabs, openDocument } from '../utils/files';
@@ -16,7 +16,12 @@ suite('Functional Test: Backend - Executor', () => {
     const filePath = path.join(STATIC_WORKSPACE_PATH, 'file.cpp');
 
     const processStatusChange = async () => new Promise<void>((res, rej) => {
-        const disposable = executorManager.processStatusChange((status) => {
+        const lastProcessId = ScheduledProcess['processIdCounter'];
+        const disposable = executorManager.processStatusChange(([id, status]) => {
+            if (id < lastProcessId) {
+                return;
+            }
+
             switch (status) {
             case ProcessStatus.finished:
                 disposable.dispose();
@@ -138,6 +143,11 @@ suite('Functional Test: Backend - Executor', () => {
 
         assert.ok(isFileChanged, 'CodeChecker log did not change compile_commands.json');
     }).timeout(5000);
+
+    test('CodeChecker log uses custom command (#122)', async function() {
+        const logCommand = executorBridge.getLogCmdArgs('cd ${workspaceFolder} && make');
+        assert.ok(logCommand?.some(arg => arg.includes('cd')), 'runLog does not use custom commands');
+    });
 
     test('CodeChecker analysis on file via command', async function() {
         // TODO: Direct commands cannot be verified via sinon spy,
