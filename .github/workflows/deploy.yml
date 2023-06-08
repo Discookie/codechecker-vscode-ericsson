@@ -49,11 +49,6 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: ${{ matrix.registry }}-package
-
-      - name: Publish package
-        if: success()
-        uses: HaaLeo/publish-vscode-extension@v1
-        with:
-          pat: ${{ secrets[matrix.token] }}
-          registryUrl: ${{ matrix.registryUrl }}
-          extensionFile: ./${{ matrix.name }}-${{ jobs.version.output.version }}.vsix
+        
+      - name: List files
+        run: ls -R
