@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: Get the version
         id: get_version
-        run: echo version=${GITHUB_REF#refs/tags/} >>$GITHUB_OUTPUT
+        run: echo version=${GITHUB_REF_NAME} >>$GITHUB_OUTPUT
     outputs:
       version: ${{ steps.get_version.outputs.version }}
 
@@ -22,7 +22,7 @@ jobs:
     needs: [version]
     uses: ./.github/workflows/package.yml
     with:
-      version: ${{ needs.version.output.version }}
+      version: ${{ needs.version.outputs.version }}
 
   build:
     name: Create extension
@@ -52,10 +52,8 @@ jobs:
         with:
           name: ${{ matrix.registry }}-package
 
-      - name: Publish package
-        if: success()
-        uses: HaaLeo/publish-vscode-extension@v1
-        with:
-          pat: ${{ secrets[matrix.token] }}
-          registryUrl: ${{ matrix.registryUrl }}
-          extensionFile: ./${{ matrix.name }}-${{ needs.version.output.version }}.vsix
+      - name: Check version number
+        id: check_version
+        run: |
+          echo ${{ needs.version.outputs.version }}
+          ls -R
